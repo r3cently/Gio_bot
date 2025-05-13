@@ -10,10 +10,13 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
+import os
+from dotenv import load_dotenv
 
-TELEGRAM_BOT_TOKEN = "6574624892:AAH_HZQI_gDks_JjwCDpxMyZe8SNfK8kqyg"
-YANDEX_API_KEY = "dda3ddba-c9ea-4ead-9010-f43fbc15c6e3"
-YANDEX_API_KEY_STATIC = "f3a0fe3a-b07e-4840-a1da-06f18b2ddf13"
+load_dotenv()
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+YANDEX_API_KEY = os.getenv("YANDEX_API_KEY")
+YANDEX_API_KEY_STATIC = os.getenv("YANDEX_API_KEY_STATIC")
 DB_PATH = "maps.db"
 user_nearby_places = {}
 logging.basicConfig(
@@ -161,8 +164,6 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 org_description = meta.get("Categories", [])
                 org_description_text = ", ".join(
                     [cat.get("name") for cat in org_description]) if org_description else "Без описания"
-                rating = meta.get('rating')
-                rating_text = f"Рейтинг: {rating}★" if rating else "Рейтинг не указан"
                 phone = meta.get("Phones", [])
                 phone_text = phone[0].get("formatted") if phone else "Нет номера"
                 hours = meta.get("Hours", {}).get("text", "Часы работы не указаны")
@@ -174,7 +175,8 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 dest_pt = f"{coords[0]},{coords[1]}"
                 pt = f"{user_pt},pm2blm~{dest_pt},pm2rdm"
                 center_ll = f"{(user_location[0] + coords[0]) / 2},{(user_location[1] + coords[1]) / 2}"
-                spn = "0.005,0.005" if dist < 0.5 else "0.09,0.09"
+                spn = "0.005,0.005" if dist < 0.5 else ("0.01,0.01" if dist < 1 else (
+                    "0.03,0.03" if dist < 5 else ("0.05,0.05" if dist < 10 else "0.09,0.09")))
 
                 static_map_url = f"https://static-maps.yandex.ru/1.x/?ll={center_ll}&spn={spn}&l=map&pt={pt}&key={YANDEX_API_KEY_STATIC}"
 
@@ -182,7 +184,6 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"<b>{org_name}</b>\n"
                     f"{org_address}\n"
                     f"{org_description_text}\n"
-                    f"{rating_text}\n"
                     f"Телефон: {phone_text}\n"
                     f"Время работы: {hours}\n"
                     f"Сайт: {website}\n"
@@ -198,8 +199,8 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 con.close()
 
                 user_nearby_places[user_id] = []
-
                 await update.message.reply_text("Выбери следующее действие:", reply_markup=build_menu())
+
                 return
 
     query_map = {"найти кафе поблизости": "кафе",
